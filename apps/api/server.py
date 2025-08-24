@@ -1,3 +1,8 @@
+#!/usr/bin/env python3
+"""
+Minimal FastAPI server for Railway deployment
+"""
+
 import base64
 import os
 from datetime import datetime
@@ -10,7 +15,8 @@ from pydantic import BaseModel, Field
 from gemini_analyzer import analyze_with_gemini
 from sse_manager import sse_manager
 
-application = FastAPI(
+# Create FastAPI instance with a completely different name
+server = FastAPI(
     title="Motion Detector API",
     description="AI-powered motion detection and analysis API",
     version="1.0.0"
@@ -20,7 +26,7 @@ application = FastAPI(
 allowed_origins = os.getenv("ALLOWED_ORIGINS", "*").split(",")
 
 # Configure CORS for SSE support
-application.add_middleware(
+server.add_middleware(
     CORSMiddleware,
     allow_origins=allowed_origins,
     allow_credentials=True,
@@ -51,12 +57,12 @@ class ImageAnalysisResponse(BaseModel):
     error_message: Optional[str] = None
 
 
-@application.get("/health")
+@server.get("/health")
 def health_check():
     return {"status": "ok", "sse_connections": sse_manager.connection_count}
 
 
-@application.get("/api/v1/ai/prompts")
+@server.get("/api/v1/ai/prompts")
 def get_available_prompts():
     """
     Get available analysis prompt types and their descriptions
@@ -74,7 +80,7 @@ def get_available_prompts():
     }
 
 
-@application.post("/api/v1/ai/analyze-image", response_model=ImageAnalysisResponse)
+@server.post("/api/v1/ai/analyze-image", response_model=ImageAnalysisResponse)
 async def analyze_image(request: ImageAnalysisRequest):
     """
     Analyze an image using AI workflow
@@ -141,7 +147,7 @@ async def analyze_image(request: ImageAnalysisRequest):
         )
 
 
-@application.post("/api/v1/ai/analyze-upload")
+@server.post("/api/v1/ai/analyze-upload")
 async def analyze_uploaded_image(
     file: UploadFile = File(...),
     prompt: Optional[str] = None,
@@ -175,7 +181,7 @@ async def analyze_uploaded_image(
 # All legacy LLaVA endpoints removed - no backward compatibility needed
 
 
-@application.get("/api/v1/events/stream")
+@server.get("/api/v1/events/stream")
 async def stream_events(request: Request):
     """
     Server-Sent Events endpoint for real-time updates
@@ -183,7 +189,7 @@ async def stream_events(request: Request):
     return await sse_manager.connect(request)
 
 
-@application.get("/api/v1/events/connections")
+@server.get("/api/v1/events/connections")
 def get_sse_connections():
     """
     Get information about active SSE connections
@@ -194,7 +200,7 @@ def get_sse_connections():
     }
 
 
-@application.get("/api/v1/queue/status")
+@server.get("/api/v1/queue/status")
 def get_queue_status():
     """
     Get current queue status and drop statistics
@@ -207,3 +213,7 @@ def get_queue_status():
         "total_frames": 0,
         "message": "Queue manager not implemented",
     }
+
+
+# Export for compatibility
+app = server
